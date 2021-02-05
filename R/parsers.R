@@ -99,12 +99,19 @@ evoparse_platypus_mutations = function(x)
   gt_field = vcfR::extract_gt_tidy(xfile, verbose = F)
 
   if(!all(c("gt_NR", "gt_NV", "Indiv") %in% colnames(gt_field))) stop("Missing required fields in the VCF (gt_NR, gt_NV, Indiv)")
+  
+   # If multiple alts exist, we take NR, NV to be the maximum amongst them
+  getmax = function(col) str_extract_all(col,"[0-9\\.-]+") %>%
+  lapply(.,function(x) max(as.numeric(x),na.rm = T) ) %>%
+  unlist() 
 
   gt_field = gt_field %>%
     dplyr::mutate(
-      DP = as.numeric(gt_NR),
-      NV = as.numeric(gt_NV),
-      VAF = NV/DP
+    DP = case_when(str_detect(gt_NR,",") ~ getmax(gt_NR),
+                   TRUE ~ as.numeric(gt_NR)),
+    NV = case_when(str_detect(gt_NV,",") ~ getmax(gt_NV),
+                   TRUE ~ as.numeric(gt_NV)),
+    VAF = NV/DP
     ) %>%
     dplyr::rename(sample = Indiv)
 
